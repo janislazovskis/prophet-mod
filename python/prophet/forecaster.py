@@ -1404,8 +1404,8 @@ class Prophet(object):
             self.make_all_seasonality_features(df)
         )
         if self.uncertainty_samples:
-            lower_p = 100 * (1.0 - self.interval_width) / 2
-            upper_p = 100 * (1.0 + self.interval_width) / 2
+            lower_p = np.array(100 * (1.0 - self.interval_width) / 2).flatten()
+            upper_p = np.array(100 * (1.0 + self.interval_width) / 2).flatten()
 
         X = seasonal_features.values
         data = {}
@@ -1417,12 +1417,11 @@ class Prophet(object):
                 comp *= self.y_scale
             data[component] = np.nanmean(comp, axis=1)
             if self.uncertainty_samples:
-                data[component + '_lower'] = self.percentile(
-                    comp, lower_p, axis=1,
-                )
-                data[component + '_upper'] = self.percentile(
-                    comp, upper_p, axis=1,
-                )
+                for i,width in enumerate(np.array(interval_width)):
+                    data[f"{component}_lower_{width}"] = self.percentile(
+                        comp, lower_p[i], axis=1)
+                    data[f"{component}_upper_{width}"] = self.percentile(
+                        comp, upper_p[i], axis=1)
         return pd.DataFrame(data)
 
     def predict_uncertainty(self, df: pd.DataFrame, vectorized: bool) -> pd.DataFrame:
@@ -1439,15 +1438,16 @@ class Prophet(object):
         """
         sim_values = self.sample_posterior_predictive(df, vectorized)
 
-        lower_p = 100 * (1.0 - self.interval_width) / 2
-        upper_p = 100 * (1.0 + self.interval_width) / 2
-
+        lower_p = np.array(100 * (1.0 - self.interval_width) / 2).flatten()
+        upper_p = np.array(100 * (1.0 + self.interval_width) / 2).flatten()
+        
         series = {}
         for key in ['yhat', 'trend']:
-            series['{}_lower'.format(key)] = self.percentile(
-                sim_values[key], lower_p, axis=1)
-            series['{}_upper'.format(key)] = self.percentile(
-                sim_values[key], upper_p, axis=1)
+            for i,width in enumerate(np.array(interval_width)):
+                series[f"{key}_lower_{width}"] = self.percentile(
+                    sim_values[key], lower_p[i], axis=1)
+                series[f"{key}_upper_{width}"] = self.percentile(
+                    sim_values[key], upper_p[i], axis=1)
 
         return pd.DataFrame(series)
 
