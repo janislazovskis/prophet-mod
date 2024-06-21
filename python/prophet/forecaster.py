@@ -127,7 +127,7 @@ class Prophet(object):
         self.holidays_prior_scale = float(holidays_prior_scale)
 
         self.mcmc_samples = mcmc_samples
-        self.interval_width = interval_width
+        self.interval_width = np.array(interval_width).flatten()
         self.uncertainty_samples = uncertainty_samples
         if scaling not in ("absmax", "minmax"):
             raise ValueError("scaling must be one of 'absmax' or 'minmax'")
@@ -1404,8 +1404,8 @@ class Prophet(object):
             self.make_all_seasonality_features(df)
         )
         if self.uncertainty_samples:
-            lower_p = 100 * (1.0 - np.array(self.interval_width).flatten()) / 2
-            upper_p = 100 * (1.0 + np.array(self.interval_width).flatten()) / 2
+            lower_p = 100 * (1.0 - self.interval_width) / 2
+            upper_p = 100 * (1.0 + self.interval_width) / 2
 
         X = seasonal_features.values
         data = {}
@@ -1417,7 +1417,7 @@ class Prophet(object):
                 comp *= self.y_scale
             data[component] = np.nanmean(comp, axis=1)
             if self.uncertainty_samples:
-                for i,width in enumerate(interval_width):
+                for i,width in enumerate(self.interval_width):
                     data[f"{component}_lower_{width}"] = self.percentile(
                         comp, lower_p[i], axis=1)
                     data[f"{component}_upper_{width}"] = self.percentile(
@@ -1438,12 +1438,12 @@ class Prophet(object):
         """
         sim_values = self.sample_posterior_predictive(df, vectorized)
 
-        lower_p = 100 * (1.0 - np.array(self.interval_width).flatten()) / 2
-        upper_p = 100 * (1.0 + np.array(self.interval_width).flatten()) / 2
+        lower_p = 100 * (1.0 - self.interval_width) / 2
+        upper_p = 100 * (1.0 + self.interval_width) / 2
         
         series = {}
         for key in ['yhat', 'trend']:
-            for i,width in enumerate(interval_width):
+            for i,width in enumerate(self.interval_width):
                 series[f"{key}_lower_{width}"] = self.percentile(
                     sim_values[key], lower_p[i], axis=1)
                 series[f"{key}_upper_{width}"] = self.percentile(
